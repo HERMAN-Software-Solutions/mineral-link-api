@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  miner
+  buyer
+  admin
+}
+
+enum ListingStatus {
+  active
+  sold
+  removed
+}
+
+enum VerificationStatus {
+  pending
+  approved
+  rejected
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  phoneNumber  String?  @map("phone_number")
+  region       String?
+  isVerified   Boolean  @default(false) @map("is_verified")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  listings               Listing[]
+  verificationsSubmitted Verification[]    @relation("BuyerVerifications")
+  verificationsReviewed  Verification[]    @relation("AdminReviews")
+  pricesSet              MineralPrice[]
+  interests              ListingInterest[]
+
+  @@map("users")
+}
+
+model Mineral {
+  id   String @id @default(uuid())
+  // ASSUMPTION — needs review: mineral names should be unique
+  name String @unique
+  unit String
+
+  prices   MineralPrice[]
+  listings Listing[]
+
+  @@map("minerals")
+}
+
+model MineralPrice {
+  id            String   @id @default(uuid())
+  mineralId     String   @map("mineral_id")
+  priceUgx      Decimal  @map("price_ugx") @db.Decimal(14, 2)
+  setByAdminId  String   @map("set_by_admin_id")
+  effectiveDate DateTime @map("effective_date")
+
+  mineral    Mineral @relation(fields: [mineralId], references: [id])
+  setByAdmin User    @relation(fields: [setByAdminId], references: [id])
+
+  @@map("mineral_prices")
+}
+
+model Listing {
+  id        String        @id @default(uuid())
+  minerId   String        @map("miner_id")
+  mineralId String        @map("mineral_id")
+  quantity  Decimal       @db.Decimal(12, 3)
+  location  String
+  status    ListingStatus @default(active)
+  notes     String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  miner     User              @relation(fields: [minerId], references: [id])
+  mineral   Mineral           @relation(fields: [mineralId], references: [id])
+  interests ListingInterest[]
+
+  @@map("listings")
+}
+
+model Verification {
+  id                String             @id @default(uuid())
+  buyerId           String             @map("buyer_id")
+  businessName      String             @map("business_name")
+  documentReference String?            @map("document_reference")
+  status            VerificationStatus @default(pending)
+  reviewedByAdminId String?            @map("reviewed_by_admin_id")
+  reviewedAt        DateTime?          @map("reviewed_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+
+  buyer      User  @relation("BuyerVerifications", fields: [buyerId], references: [id])
+  reviewedBy User? @relation("AdminReviews", fields: [reviewedByAdminId], references: [id])
+
+  @@map("verifications")
+}
+
+model ListingInterest {
+  id        String   @id @default(uuid())
+  listingId String   @map("listing_id")
+  buyerId   String   @map("buyer_id")
+  message   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  listing Listing @relation(fields: [listingId], references: [id])
+  buyer   User    @relation(fields: [buyerId], references: [id])
+
+  @@map("listing_interests")
+}
