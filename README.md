@@ -73,6 +73,27 @@ Full project documentation lives in [`/docs`](./docs):
 - [`ROADMAP.md`](./docs/ROADMAP.md) — the 3-month plan
 - [`CONVENTIONS.md`](./docs/CONVENTIONS.md) — Git and code style rules
 
-## Status
+## Database
 
-Documentation phase. No application code has been written yet — this is intentional, per the current task. Code will begin after mentor review.
+Mineral Link uses PostgreSQL, accessed through Prisma 7. The tables are described in `prisma/schema.prisma`, and the design behind them is in `docs/DATABASE_DESIGN.md`.
+
+### Set up PostgreSQL locally
+
+1. Install PostgreSQL (version 16 or newer) from postgresql.org. During setup, choose a password for the `postgres` user and remember it.
+2. Create an empty database named `mineral_link_dev` (pgAdmin works: right-click Databases, then Create, then Database).
+3. Copy `.env.example` to `.env` and replace `USER` and `PASSWORD` with your own PostgreSQL username and password. The `.env` file is ignored by Git and must never be committed.
+
+### Run migrations
+
+1. Install the project's packages: `npm install`
+2. Create the tables: `npm run db:migrate`
+3. To look at the tables in a browser: `npm run db:studio`
+
+More detail is in `prisma/README.md`.
+
+### Seeding
+
+There is no seed data yet. Seeding (for example, adding gold, tin and tungsten to the `minerals` table) can be added in a later task.
+
+## Status
+Database schema and first migration are in place. API code has not been written yet.
