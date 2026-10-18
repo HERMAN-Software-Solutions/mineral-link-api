@@ -1,6 +1,5 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -61,9 +60,11 @@ model Mineral {
 model MineralPrice {
   id            String   @id @default(uuid())
   mineralId     String   @map("mineral_id")
-  priceUgx      Decimal  @map("price_ugx") @db.Decimal(14, 2)
+
+  priceUgx      Decimal  @map("price_ugx") @db.Decimal(18, 2)
   setByAdminId  String   @map("set_by_admin_id")
   effectiveDate DateTime @map("effective_date")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   mineral    Mineral @relation(fields: [mineralId], references: [id])
   setByAdmin User    @relation(fields: [setByAdminId], references: [id])
