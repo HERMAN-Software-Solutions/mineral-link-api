@@ -18,14 +18,10 @@ Small-scale miners in Uganda usually have no direct way to reach buyers or expor
 |---|---|
 | **Node.js** | Runs JavaScript/TypeScript on the server, has a huge ecosystem of packages, and is fast to build and iterate with — good for a project that needs to move quickly during a 3-month internship. |
 | **TypeScript** | Adds types on top of JavaScript. This catches mistakes (like sending the wrong data shape) before the code even runs, which matters for a project that will have multiple people/roles (miner, buyer, admin) and easy-to-mix-up data. |
-| **Express** (planned) | A minimal, well-documented framework for building the REST API — routes, middleware, and request handling — without unnecessary complexity. |
-| **PostgreSQL** (planned) | A relational database. Mineral Link's data is naturally relational (a user has many listings, a listing has one mineral type, a transaction links a buyer and a miner), so a relational database fits better than a document store. |
-
-This is a documentation-only step, so no packages are installed yet. The stack above is the plan for when coding starts.
+| **Express**| A minimal, well-documented framework for building the REST API — routes, middleware, and request handling — without unnecessary complexity. |
+| **PostgreSQL** | A relational database. Mineral Link's data is naturally relational (a user has many listings, a listing has one mineral type, a transaction links a buyer and a miner), so a relational database fits better than a document store. |
 
 ## How to Install and Run Locally
-
-> Note: at this stage, this repository only contains documentation. These are the steps that will apply once the actual API code is added.
 
 1. **Install Node.js** (LTS version) from [nodejs.org](https://nodejs.org).
 2. **Clone this repository:**
@@ -33,7 +29,7 @@ This is a documentation-only step, so no packages are installed yet. The stack a
    git clone <repository-url>
    cd mineral-link-api
    ```
-3. **Install dependencies** (once `package.json` exists):
+3. 3. **Install dependencies:**
    ```bash
    npm install
    ```
@@ -50,18 +46,24 @@ This is a documentation-only step, so no packages are installed yet. The stack a
 
 ```
 mineral-link-api/
-├── docs/                   # All project documentation (see below)
+├── docs/                   # Project documentation
+├── prisma/
+│   ├── schema.prisma       # Database models, enums and relations
+│   └── migrations/         # History of database changes
 ├── src/
-│   ├── routes/             # Defines API endpoints (e.g. /api/listings) and connects them to controllers
-│   ├── controllers/        # Receives requests, validates input, calls services, sends responses
-│   ├── services/           # Business logic — the actual rules of how Mineral Link works
-│   ├── models/             # Database table definitions and how data is shaped
-│   ├── middleware/         # Code that runs between the request and the controller (auth checks, error handling)
-│   └── index.ts            # Entry point — starts the server
-├── .gitignore               # Files/folders Git should not track (node_modules, .env, dist, etc.)
-├── LICENSE                  # MIT License
-├── package.json              # Project dependencies and scripts (to be added when coding starts)
-└── README.md                 # This file
+│   ├── config/             # Reads and checks the .env settings (env.ts)
+│   ├── controllers/        # Handles the HTTP request and response
+│   ├── middleware/         # authenticate, authorize, error handling
+│   ├── routes/             # URL definitions that point to controllers
+│   ├── services/           # Business logic and database calls (db.ts, auth.service.ts)
+│   ├── types/              # TypeScript types (AuthUser, req.user)
+│   ├── utils/              # Helpers: JWT, AppError, Zod schemas
+│   ├── app.ts              # Express app setup
+│   └── server.ts           # Entry point, starts the server
+├── .env.example            # Placeholder settings (the real .env is never committed)
+├── prisma.config.ts        # Prisma connection settings
+├── tsconfig.json           # TypeScript settings (strict mode on)
+└── package.json            # Dependencies and scripts
 ```
 
 ## Documentation
@@ -95,5 +97,73 @@ More detail is in `prisma/README.md`.
 
 There is no seed data yet. Seeding (for example, adding gold, tin and tungsten to the `minerals` table) can be added in a later task.
 
+## Authentication
+
+The API uses JWT (JSON Web Tokens). A user registers or logs in and receives a token. For protected routes, the token is sent in the `Authorization` header as `Bearer <token>`. Passwords are hashed with bcrypt (10 rounds), and `passwordHash` is never included in any response.
+
+### Setup
+
+Add these to your `.env` (the placeholders are in `.env.example`):
+
+- `PORT` — port the API listens on (default 4000)
+- `JWT_SECRET` — long random secret used to sign tokens (at least 16 characters)
+- `JWT_EXPIRES_IN` — how long a token stays valid, for example `1d`
+
+Start the API with `npm run dev`. It runs at `http://localhost:4000`.
+
+### Endpoints
+
+#### POST /api/auth/register
+
+Creates an account and returns the user and a token. Only the roles `miner` and `buyer` can register here. Admins will be seeded later.
+
+Body:
+
+```json
+{
+  "name": "Adeline Test",
+  "email": "adeline.test@example.com",
+  "password": "Password123",
+  "role": "miner"
+}
+```
+
+Rules: `name` at least 2 characters, a valid `email`, `password` between 8 and 72 characters, `role` is `miner` or `buyer`.
+
+Response `201`: `{ "user": { ... }, "token": "<jwt>" }`
+
+Errors: `400` validation failed, `409` an account with this email already exists.
+
+#### POST /api/auth/login
+
+Checks the email and password and returns the user and a token.
+
+Body:
+
+```json
+{
+  "email": "adeline.test@example.com",
+  "password": "Password123"
+}
+```
+
+Response `200`: `{ "user": { ... }, "token": "<jwt>" }`
+
+Errors: `400` validation failed, `401` invalid email or password.
+
+#### GET /api/auth/me
+
+Protected. Returns the profile of the logged-in user. Send the header `Authorization: Bearer <token>`.
+
+Response `200`: `{ "user": { ... } }`
+
+Errors: `401` token missing, invalid or expired.
+
+### Errors
+
+Every error is JSON with an `error` message. Validation errors (`400`) also include a `details` list with the field and message for each problem.
+
 ## Status
-Database schema and first migration are in place. API code has not been written yet.
+Database schema, first migration and the authentication API (register, login, me) are in place.
+
+
