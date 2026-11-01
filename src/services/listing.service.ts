@@ -53,20 +53,25 @@ export async function getListing(id: string) {
   return listing;
 }
 
-export async function updateListing(id: string, input: UpdateListingInput) {
+// Loads a listing and makes sure the logged-in user owns it.
+// The owner is decided by the database, never by anything in the request body.
+async function getOwnedListing(id: string, userId: string) {
   const listing = await prisma.listing.findUnique({ where: { id } });
   if (!listing || listing.status === 'removed') {
     throw new AppError(404, 'Listing not found');
   }
-  // TODO (next commit): check that listing.minerId is the logged-in user.
+  if (listing.minerId !== userId) {
+    throw new AppError(403, 'You can only change your own listings');
+  }
+  return listing;
+}
+
+export async function updateListing(id: string, userId: string, input: UpdateListingInput) {
+  await getOwnedListing(id, userId);
   return prisma.listing.update({ where: { id }, data: input, include: listingInclude });
 }
 
-export async function removeListing(id: string) {
-  const listing = await prisma.listing.findUnique({ where: { id } });
-  if (!listing || listing.status === 'removed') {
-    throw new AppError(404, 'Listing not found');
-  }
-  // TODO (next commit): check that listing.minerId is the logged-in user.
+export async function removeListing(id: string, userId: string) {
+  await getOwnedListing(id, userId);
   await prisma.listing.update({ where: { id }, data: { status: 'removed' } });
 }

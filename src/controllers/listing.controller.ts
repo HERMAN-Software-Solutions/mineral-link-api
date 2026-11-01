@@ -31,14 +31,20 @@ export async function getListing(req: Request, res: Response) {
 }
 
 export async function updateListing(req: Request, res: Response) {
+  if (!req.user) {
+    throw new AppError(401, 'Authentication required');
+  }
   const { id } = listingParamsSchema.parse(req.params);
   const input = updateListingSchema.parse(req.body);
-  const listing = await listingService.updateListing(id, input);
+  const listing = await listingService.updateListing(id, req.user.id, input);
   res.status(200).json({ listing });
 }
 
 export async function removeListing(req: Request, res: Response) {
+  if (!req.user) {
+    throw new AppError(401, 'Authentication required');
+  }
   const { id } = listingParamsSchema.parse(req.params);
-  await listingService.removeListing(id);
+  await listingService.removeListing(id, req.user.id);
   res.status(204).send();
 }
