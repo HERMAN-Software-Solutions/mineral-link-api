@@ -95,7 +95,7 @@ More detail is in `prisma/README.md`.
 
 ### Seeding
 
-There is no seed data yet. Seeding (for example, adding gold, tin and tungsten to the `minerals` table) can be added in a later task.
+Run `npm run db:seed` to add Gold, Tin and Tungsten and an admin account. Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in your `.env` first. It is safe to run more than once.
 
 ## Authentication
 
@@ -163,7 +163,102 @@ Errors: `401` token missing, invalid or expired.
 
 Every error is JSON with an `error` message. Validation errors (`400`) also include a `details` list with the field and message for each problem.
 
-## Status
-Database schema, first migration and the authentication API (register, login, me) are in place.
+## Minerals and Listings
+
+Protected routes need the header `Authorization: Bearer <token>` (see Authentication above). Every error is JSON with an `error` message.
+
+### Minerals
+
+#### GET /api/minerals
+
+Public. Returns all minerals, sorted by name.
+
+Response `200`: `{ "minerals": [ { "id": "...", "name": "Gold", "unit": "gram" } ] }`
+
+#### POST /api/minerals
+
+Admin only. Creates a mineral. The name is cleaned up to one consistent form, so `gold` and ` GOLD ` both become `Gold`.
+
+Body:
+
+```json
+{
+  "name": "Copper",
+  "unit": "kg"
+}
+```
+
+Response `201`: `{ "mineral": { ... } }`
+
+Errors: `400` validation failed, `401` no token, `403` not an admin, `409` a mineral with this name already exists.
+
+### Listings
+
+Listings return the related mineral (`id`, `name`, `unit`) and the miner (`id`, `name`, `region`). The miner's email and password hash are never included. `quantity` is returned as text, so no precision is lost.
+
+#### GET /api/listings
+
+Public. Returns active listings, newest first.
+
+Query parameters (both optional):
+
+- `mineralId` — a mineral's UUID
+- `region` — the miner's region, not case sensitive (for example `?region=kampala`)
+
+Response `200`: `{ "listings": [ { ... } ] }`
+
+Errors: `400` invalid query.
+
+#### GET /api/listings/:id
+
+Public. Returns one listing.
+
+Response `200`: `{ "listing": { ... } }`
+
+Errors: `400` invalid id, `404` listing not found or removed.
+
+#### POST /api/listings
+
+Miner only. Creates a listing. The miner is always the logged-in user, taken from the token. Any `minerId` in the body is ignored.
+
+Body:
+
+```json
+{
+  "mineralId": "159caee9-87d0-4a44-b42f-0854b030dd06",
+  "quantity": 2.5,
+  "location": "Kampala",
+  "notes": "Alluvial gold, ready for collection"
+}
+```
+
+Rules: `mineralId` is a valid UUID, `quantity` is a number greater than 0, `location` is 2 to 120 characters, `notes` is optional.
+
+Response `201`: `{ "listing": { ... } }`
+
+Errors: `400` validation failed, `401` no token, `403` not a miner, `404` mineral not found.
+
+#### PATCH /api/listings/:id
+
+Miner only, and only the owner of the listing. Send at least one of `quantity`, `location`, `notes` or `status` (`active` or `sold`).
+
+Response `200`: `{ "listing": { ... } }`
+
+Errors: `400` validation failed, `401` no token, `403` not a miner or not the owner, `404` listing not found.
+
+#### DELETE /api/listings/:id
+
+Miner only, and only the owner. The listing is marked `removed`. It stays in the database but no longer appears in the API.
+
+Response `204`: no body.
+
+Errors: `401` no token, `403` not a miner or not the owner, `404` listing not found.
+
+### Assumptions (need review)
+
+- ASSUMPTION — needs review: DELETE marks a listing as `removed` instead of erasing the row, because buyers' interest records point at listings.
+- ASSUMPTION — needs review: the public list shows only `active` listings.
+- ASSUMPTION — needs review: the `region` filter uses the miner's region. Registration does not collect a region yet, so miners have none until a way to set it is added.## Status
+Database, authentication, minerals and listings APIs are in place.
 
 
